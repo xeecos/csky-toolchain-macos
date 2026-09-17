@@ -1,0 +1,17 @@
+# ---- 编译好的交叉工具链（build-toolchain.sh 的产物）----
+# 含源码 src/、构建目录 build/、安装目录 install/ 与 build.log；体积数 GB 且可重建，不入库。
+# 需重建: CSKY_ROOT=toolchain ./build-toolchain.sh
+/toolchain/
+
+# ---- 编译与打包产物 ----
+test/*.elf
+test/*.hex
+fwpack/firmware.bin
+fwpack/*.part
+
+# ---- Python 虚拟环境（fwpack/usbboot.py 需要 pyusb）----
+.venv/
+
+# ---- macOS ----
+.DS_Store
+TXW82x_FPV
