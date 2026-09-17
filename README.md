@@ -56,8 +56,12 @@ make pack       # 打包为 ../fwpack/firmware.bin（自动回读校验）
 
 ### 1. 交叉工具链（构建脚本）
 
-- `install-deps.sh` / `build-toolchain.sh` / `env.sh`；安装于 `~/csky-toolchain/install`
-  （`CSKY_ROOT` 可整体挪动；确认不再重建后可删 `src/`+`build/` 释放约 7GB）。
+- `install-deps.sh` / `build-toolchain.sh` / `env.sh`；**安装在项目内 `toolchain/install`**
+  （`env.sh` 默认即指向此处，`CSKY_ROOT` 可整体挪到别处，例如
+  `CSKY_ROOT=$HOME/csky-toolchain ./build-toolchain.sh`）。
+- `toolchain/` 下的 `src/`（源码与压缩包）+ `build/` 为中间产物，**体积数 GB 且可重建**，
+  已被 `.gitignore` 排除；只保留运行工具链需要 `install/`，确认不再重建后删 `src/`+`build/`
+  可释放约 7GB。
 - 可调环境变量：`GCC_VERSION` / `BINUTILS_VERSION` / `NEWLIB_VERSION` / `LANGUAGES`（纯 C 设
   `c` 提速）/ `JOBS`（默认 min(核数,4)，见坑 6）/ `TRIM_MULTILIB`（默认 1 只编 ck803 系列
   multilib；设 0 保留全部，但 ck807/810/860 变体有单文件数小时的编译病理，16GB 机器慎用）。
@@ -122,11 +126,11 @@ TCP OTA 源码约 200 行明文，可改造为 HTTP 云端下载；断电安全�
 
 ### 6. SDK 源码树 TXW82x_FPV/（已内置）
 
-官方 TXW82x FPV SDK（Apache-2.0）原样存放在本仓库 `TXW82x_FPV/`，**不含**其 Windows 侧构建
-产物；来源、校验与更新方式见 [TXW82x_FPV/PROVENANCE.md](TXW82x_FPV/PROVENANCE.md)——
-标签 `TXW82x_FPV-v2.7.0.7-43482`、提交 `1cd7f11`，且其中 `project/txw82xcore.bin` 与
-`fwpack/txw82xcore.bin` **逐字节相同**（md5 `e07954bacb6aa515d45eda8467cff3fd`），
-说明打包输入与 SDK 同源。
+官方 TXW82x FPV SDK（Apache-2.0）原样存放于项目内 `TXW82x_FPV/`（体积大，已由 `.gitignore`
+排除、不入库，可随时按下方方式重新克隆），**不含**其 Windows 侧构建产物；来源、校验与更新
+方式见 [TXW82x_FPV/PROVENANCE.md](TXW82x_FPV/PROVENANCE.md)——标签 `TXW82x_FPV-v2.7.0.7-43482`、
+提交 `1cd7f11`，且其中 `project/txw82xcore.bin` 与 `fwpack/txw82xcore.bin` **逐字节相同**
+（md5 `e07954bacb6aa515d45eda8467cff3fd`），说明打包输入与 SDK 同源。
 
 - 用途：`libs/`（19 个预编译 `.a`）可直接链接；`sdk/include/lib/ota/fwinfo.h` 是固件头部
   格式的权威定义；`project/makecode.ini` 是 `fwpack/fwpack.ini` 的对齐基准；
@@ -146,6 +150,16 @@ TCP OTA 源码约 200 行明文，可改造为 HTTP 云端下载；断电安全�
 5. sourceware git 被重置 / ftp.gnu.org 极慢 → newlib 用发布包，GNU 走清华/阿里云镜像。
 6. libgcc 单文件内存峰值 2GB+，并行过高导致 16GB 内存换页风暴（貌似"卡死"）→
    默认 `JOBS=min(核数,4)` + multilib 裁剪（44 → 7 个变体，全量构建需数小时，裁剪后约 25 分钟）。
+7. **newlib 发布包只有海外源**（sourceware.org / mirrors.kernel.org），国内直连实测约
+   20–40 KB/s（9MB 要 5 分钟以上），而 GCC/binutils 有清华/阿里云镜像可跑满宽带 →
+   若 newlib 卡住，先按下面方式单独下好再跑构建脚本（脚本见文件已存在即跳过下载）：
+
+   ```bash
+   cd toolchain/src
+   https_proxy=http://127.0.0.1:7890 \
+     curl -fL -o newlib-4.6.0.20260123.tar.gz \
+     https://sourceware.org/pub/newlib/newlib-4.6.0.20260123.tar.gz
+   ```
 
 ## 打包格式待厂商镜像反验证的假设
 
@@ -157,13 +171,17 @@ TCP OTA 源码约 200 行明文，可改造为 HTTP 云端下载；断电安全�
 
 ```
 ├── README.md               本文档
+├── .gitignore              排除 toolchain/、编译与打包产物、.DS_Store
 ├── install-deps.sh         Homebrew 依赖
 ├── build-toolchain.sh      工具链构建（multilib 裁剪/as-ld 链接修复/断点续跑）
-├── env.sh                  PATH 注入（source 生效）
+├── env.sh                  PATH 注入（默认指向 ./toolchain/install，source 生效）
+├── toolchain/              编译好的工具链（本机产物，不入库）
+│   ├── install/            工具链本体（csky-elfabiv2-*，source env.sh 后可用）
+│   └── src/ build/         源码与中间产物，可重建，确认后删除可省约 7GB
 ├── test/
 │   ├── hello.c             ck803f hard-float 冒烟测试
 │   └── Makefile            make / make dump / make fpu / make pack
-├── TXW82x_FPV/             官方 SDK 源码树（Apache-2.0，v2.7.0.7-43482；见其 PROVENANCE.md）
+├── TXW82x_FPV/             官方 SDK 源码树（Apache-2.0，v2.7.0.7-43482，已 gitignore）
 │   ├── project/            应用源码 + CDK 工程 + 引导核 txw82xcore.bin + 官方打包配置
 │   ├── sdk/                芯片 SDK 源码/头文件/驱动/中间件（含 app/update 的 OTA）
 │   ├── libs/               19 个预编译库（macOS 侧可直接链接）

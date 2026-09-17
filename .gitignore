@@ -14,4 +14,9 @@ fwpack/*.part
 
 # ---- macOS ----
 .DS_Store
+
+# ---- 厂商 SDK 源码树（体积大、可从官方仓库重新克隆，不入库）----
+# 重新获取: git clone --depth 1 --branch TXW82x_FPV-v2.7.0.7-43482 \
+#   https://github.com/Taixin-Semiconductor/TXW82x_FPV.git TXW82x_FPV
+# 版本与校验见 TXW82x_FPV/PROVENANCE.md
 TXW82x_FPV
